@@ -133,7 +133,7 @@ fn main () {
                     for s in 0..src.len() { src[s] = 0.15 + 0.85 * src[s] / deg[s] as f32; }
                     for d in 0..dst.len() { dst[d] = 0.0; }
 
-                    let test = time::precise_time_s();
+                    if index == 0 { println!("mult (start): {}", time::precise_time_s() - start); }
 
                     // do the multiplication for each compressed sequence
                     for sequence in &compressed {
@@ -143,7 +143,7 @@ fn main () {
                         }
                     }
 
-                    if index == 0 { println!("mult: {}", time::precise_time_s() - test); }
+                    if index == 0 { println!("mult (end): {}", time::precise_time_s() - start); }
 
                     for s in 0..src.len() { src[s] = 0.0; }
 
@@ -183,14 +183,14 @@ fn main () {
                 }
 
                 while let Some((time, _)) = notificator.next() {
-                    let test = time::precise_time_s();
+                    if index == 0 { println!("aggr (start): {}", time::precise_time_s() - start); }
                     let mut session = output.session(&time);
                     for (node, &rank) in aggregates.iter().enumerate() {
                         if rank != 0.0 {
                             session.give((node as u32 * peers, rank));
                         }
                     }
-                    if index == 0 { println!("aggr: {}", time::precise_time_s() - test); }
+                    if index == 0 { println!("aggr (end): {}", time::precise_time_s() - start); }
                 }
             });
 
