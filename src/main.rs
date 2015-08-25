@@ -67,7 +67,7 @@ fn main () {
             let (cycle, ranks) = builder.loop_variable::<(u32, f32)>(RootTimestamp::new(20), Local(1));
 
             let ranks = edges.binary_notify(&ranks,
-                                Exchange::new(|x: &(u32,u32)| x.0 as u64),
+                                Exchange::new(|x: &(u32,u32)| ((x.0 % machines) * threads + (x.1 % threads)) as u64),
                                 Pipeline,   // data are partitioned as part of the broadcast step.
                                 "hilbrank",
                                 vec![RootTimestamp::new(0)],
