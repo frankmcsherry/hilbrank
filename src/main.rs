@@ -29,7 +29,7 @@ fn main () {
         more thinking about things.
     */
 
-    let threads: u32 = ::std::env::args().nth(1).unwrap().parse().unwrap();
+    let threads: u32 = 8; //::std::env::args().nth(1).unwrap().parse().unwrap();
     let filename = ::std::env::args().nth(2).unwrap();
     let nodes: u32 = ::std::env::args().nth(3).unwrap().parse().unwrap();
 
@@ -37,7 +37,7 @@ fn main () {
 
         let index = root.index() as u32;
         let peers = root.peers() as u32;
-        let processes = (peers / threads) as u32;
+        let processes = 16; //(peers / threads) as u32;
         let dst_index = index % threads;
 
         let start = time::precise_time_s();
@@ -198,9 +198,9 @@ fn main () {
             // ideally, none of this actually ends up hitting the network. also, it seems like it
             // shouldn't even require looking at `node`, on account of already putting all the data
             // on the right processes. We should be able to use (index / threads) * threads, I think.
-            let mut exchanged = aggregated.exchange(move |&(node, _)| ((node % processes) * threads) as u64);
+            let mut exchanged = aggregated.exchange(move |&(_node, _)| ((index / threads) * threads) as u64);// ((node % processes) * threads) as u64);
             for i in 1..threads {
-                exchanged = aggregated.exchange(move |&(node, _)| (((node % processes) * threads) + i) as u64)
+                exchanged = aggregated.exchange(move |&(_node, _)| ((index / threads) * threads + i) as u64)
                                       .concat(&exchanged);
             }
 
