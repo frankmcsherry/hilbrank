@@ -30,10 +30,13 @@ fn main () {
     */
 
     let threads: u32 = ::std::env::args().nth(1).unwrap().parse().unwrap();
+    println!("threads: {}", threads);
     let filename = ::std::env::args().nth(2).unwrap();
+    println!("filename: {}", filename);
     let nodes: u32 = ::std::env::args().nth(3).unwrap().parse().unwrap();
+    println!("nodes: {}", nodes);
 
-    timely::execute_from_args(::std::env::args().skip(3), move |root| {
+    timely::execute_from_args(::std::env::args().skip(4), move |root| {
 
         let index = root.index() as u32;
         let peers = root.peers() as u32;
