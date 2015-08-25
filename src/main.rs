@@ -143,7 +143,7 @@ fn main () {
                         }
                     }
 
-                    if index == 0 { println!("mult: {}", time::precise_time_s() - test); } 
+                    if index == 0 { println!("mult: {}", time::precise_time_s() - test); }
 
                     for s in 0..src.len() { src[s] = 0.0; }
 
@@ -183,12 +183,14 @@ fn main () {
                 }
 
                 while let Some((time, _)) = notificator.next() {
+                    let test = time::precise_time_s();
                     let mut session = output.session(&time);
                     for (node, &rank) in aggregates.iter().enumerate() {
                         if rank != 0.0 {
                             session.give((node as u32 * peers, rank));
                         }
                     }
+                    if index == 0 { println!("aggr: {}", time::precise_time_s() - test); }
                 }
             });
 
