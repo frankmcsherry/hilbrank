@@ -24,19 +24,20 @@ use radix_sort::*;
 fn main () {
 
     /*
-        The plan here is to partition the rows of the matrix into #machines parts, and the columns
+        The plan here is to partition the rows of the matrix into #processes parts, and the columns
         into #threads parts. This could be generally #row_parts and #col_parts, but that requires
         more thinking about things.
     */
 
     let threads: u32 = ::std::env::args().nth(1).unwrap().parse().unwrap();
     let filename = ::std::env::args().nth(2).unwrap();
+    let nodes: u32 = ::std::env::args().nth(3).unwrap().parse().unwrap();
 
     timely::execute_from_args(::std::env::args().skip(3), move |root| {
 
         let index = root.index() as u32;
         let peers = root.peers() as u32;
-        let machines = (peers / threads) as u32;
+        let processes = (peers / threads) as u32;
         let dst_index = index % threads;
 
         let start = time::precise_time_s();
@@ -48,15 +49,15 @@ fn main () {
         let mut decoder = BytewiseCached::new();
         let mut compressed = vec![];
 
-        let nodes: u32 = 3_563_602_788 + 1;
+        // let nodes: u32 = 3_563_602_788 + 1;
 
-        let local_srcs = (nodes / machines) + 1;
+        let local_srcs = (nodes / processes) + 1;
         let local_dsts = (nodes / threads) + 1;
 
         // degree is ignored at the moment.
         // mostly just a pain to put together.
         let deg = vec![1.0f32; local_srcs as usize];
-        let mut src = vec![0.0f32; local_srcs as usize];
+        let mut src = vec![1.0f32; local_srcs as usize];
         let mut dst = vec![0.0f32; local_dsts as usize];
 
 
@@ -76,7 +77,7 @@ fn main () {
                 while let Some((_index, data)) = input1.next() {
                     counter += data.len();
                     for &(src,dst) in data.iter() {
-                        let shrunk = (src / machines, dst / threads);
+                        let shrunk = (src / processes, dst / threads);
                         sorter.push(hilbert.entangle(shrunk), &|&x| x);
                     }
 
@@ -93,6 +94,22 @@ fn main () {
                         compressed.push(compressor.done());
                         counter = 0;
                     }
+                }
+
+                if counter > 0 {
+                    // round out any remaining edges
+                    println!("starting a sort of {} elements", counter);
+                    let mut results = sorter.finish(&|&x| x);
+                    println!("sorting done! compressing");
+                    let mut compressor = Compressor::with_capacity(counter);
+                    for vec in results.iter_mut() {
+                        for elem in vec.drain_temp() {
+                            compressor.push(elem);
+                        }
+                    }
+                    println!("compression done!");
+                    compressed.push(compressor.done());
+                    counter = 0;
                 }
 
                 // all inputs received for iter, commence multiplication
@@ -143,16 +160,16 @@ fn main () {
                 while let Some((iter, data)) = input2.next() {
                     notificator.notify_at(&iter);
                     for &(node, rank) in data.iter() {
-                        src[(node / machines) as usize] += rank;
+                        src[(node / processes) as usize] += rank;
                     }
                 }
             });
 
             let mut aggregates = vec![0.0f32; (nodes / peers) as usize];
             // want to do aggregation so that aggregates are local to the folks who will need them.
-            // that is, (node, rank) goes to some worker on machine#: name % machines
+            // that is, (node, rank) goes to some worker on machine#: name % processes
             let aggregated = ranks.unary_notify(
-                Exchange::new(move |&(n,_): &(u32,f32)| (((n % machines) * threads) + ((n / machines) % threads)) as u64),
+                Exchange::new(move |&(n,_): &(u32,f32)| (((n % processes) * threads) + ((n / processes) % threads)) as u64),
                 "aggregation",
                 vec![],
                 move |input, output, notificator | {
@@ -165,6 +182,7 @@ fn main () {
                 }
 
                 while let Some((time, _)) = notificator.next() {
+                    println!("notificating aggregator at {:?}", time);
                     let mut session = output.session(&time);
                     for (node, &rank) in aggregates.iter().enumerate() {
                         if rank != 0.0 {
@@ -177,10 +195,10 @@ fn main () {
             // data are now aggregated, and only need to be broadcast out to the intended recipients
             // ideally, none of this actually ends up hitting the network. also, it seems like it
             // shouldn't even require looking at `node`, on account of already putting all the data
-            // on the right machines. We should be able to use (index / threads) * threads, I think.
-            let mut exchanged = aggregated.exchange(move |&(node, _)| ((node % machines) * threads) as u64);
+            // on the right processes. We should be able to use (index / threads) * threads, I think.
+            let mut exchanged = aggregated.exchange(move |&(node, _)| ((node % processes) * threads) as u64);
             for i in 1..threads {
-                exchanged = aggregated.exchange(move |&(node, _)| (((node % machines) * threads) + i) as u64)
+                exchanged = aggregated.exchange(move |&(node, _)| (((node % processes) * threads) + i) as u64)
                                       .concat(&exchanged);
             }
 
@@ -188,6 +206,8 @@ fn main () {
 
             input
         });
+
+        println!("about to open up prefix: {}", filename);
 
         // introduce edges into the computation;
         // allow mmaped file to drop
