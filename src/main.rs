@@ -30,11 +30,8 @@ fn main () {
     */
 
     let threads: u32 = ::std::env::args().nth(1).unwrap().parse().unwrap();
-    println!("threads: {}", threads);
     let filename = ::std::env::args().nth(2).unwrap();
-    println!("filename: {}", filename);
     let nodes: u32 = ::std::env::args().nth(3).unwrap().parse().unwrap();
-    println!("nodes: {}", nodes);
 
     timely::execute_from_args(::std::env::args().skip(4), move |root| {
 
@@ -101,16 +98,13 @@ fn main () {
 
                 if counter > 0 {
                     // round out any remaining edges
-                    println!("starting a sort of {} elements", counter);
                     let mut results = sorter.finish(&|&x| x);
-                    println!("sorting done! compressing");
                     let mut compressor = Compressor::with_capacity(counter);
                     for vec in results.iter_mut() {
                         for elem in vec.drain_temp() {
                             compressor.push(elem);
                         }
                     }
-                    println!("compression done!");
                     compressed.push(compressor.done());
                     counter = 0;
                 }
@@ -185,7 +179,6 @@ fn main () {
                 }
 
                 while let Some((time, _)) = notificator.next() {
-                    println!("notificating aggregator at {:?}", time);
                     let mut session = output.session(&time);
                     for (node, &rank) in aggregates.iter().enumerate() {
                         if rank != 0.0 {
@@ -209,8 +202,6 @@ fn main () {
 
             input
         });
-
-        println!("about to open up prefix: {}", filename);
 
         // introduce edges into the computation;
         // allow mmaped file to drop
