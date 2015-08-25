@@ -143,7 +143,7 @@ fn main () {
                         }
                     }
 
-                    if index == 0 { println!("mult: {}", time::precise_time_s() - test); 
+                    if index == 0 { println!("mult: {}", time::precise_time_s() - test); } 
 
                     for s in 0..src.len() { src[s] = 0.0; }
 
