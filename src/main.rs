@@ -133,6 +133,8 @@ fn main () {
                     for s in 0..src.len() { src[s] = 0.15 + 0.85 * src[s] / deg[s] as f32; }
                     for d in 0..dst.len() { dst[d] = 0.0; }
 
+                    let test = time::precise_time_s();
+
                     // do the multiplication for each compressed sequence
                     for sequence in &compressed {
                         for element in sequence.decompress() {
@@ -140,6 +142,8 @@ fn main () {
                             dst[d as usize] += src[s as usize];
                         }
                     }
+
+                    if index == 0 { println!("mult: {}", time::precise_time_s() - test); 
 
                     for s in 0..src.len() { src[s] = 0.0; }
 
